@@ -1,93 +1,161 @@
 # Infrastructure related to csgo-server
 ## Startup Script
 data "template_file" "csgo-server-launcher-conf" {
-  template = "${file("templates/csgo-server-launcher.conf")}"
+  template = file("templates/csgo-server-launcher.conf")
 
-  vars {
-    screen-name = "${var.screen-name}"
-    user = "${var.user}"
-    port = "${var.port}"
-    gslt = "${var.gslt}"
-    dir-steamcmd = "${var.dir-steamcmd}"
-    steam-login = "${var.steam-login}"
-    steam-password = "${var.steam-password}"
-    steam-runscript = "${var.steam-runscript}"
-    dir-root = "${var.dir-root}"
-    dir-game = "${var.dir-game}"
-    dir-logs = "${var.dir-logs}"
-    daemon-game = "${var.daemon-game}"
-    update-log = "${var.update-log}"
-    update-email = "${var.update-email}"
-    update-retry = "${var.update-retry}"
-    api-authorization-key = "${var.api-authorization-key}"
-    workshop-collection-id = "${var.workshop-collection-id}"
-    workshop-start-map = "${var.workshop-start-map}"
-    maxplayers = "${var.maxplayers}"
-    tickrate = "${var.tickrate}"
-    extraparams = "${var.extraparams}"
-    param-start = "${var.param-start}"
-    param-update = "${var.param-update}"
+  vars = {
+    screen-name            = var.screen-name
+    user                   = var.user
+    port                   = var.port
+    gslt                   = var.gslt
+    dir-steamcmd           = var.dir-steamcmd
+    steam-login            = var.steam-login
+    steam-password         = var.steam-password
+    steam-runscript        = var.steam-runscript
+    dir-root               = var.dir-root
+    dir-game               = var.dir-game
+    dir-logs               = var.dir-logs
+    daemon-game            = var.daemon-game
+    update-log             = var.update-log
+    update-email           = var.update-email
+    update-retry           = var.update-retry
+    api-authorization-key  = var.api-authorization-key
+    workshop-collection-id = var.workshop-collection-id
+    workshop-start-map     = var.workshop-start-map
+    maxplayers             = var.maxplayers
+    tickrate               = var.tickrate
+    extraparams            = var.extraparams
+    param-start            = var.param-start
+    param-update           = var.param-update
+    public-ip              = aws_eip.csgo-server.public_ip
   }
 }
 
-## Firewalls
-resource "google_compute_firewall" "csgo-server-firewall" {
-  name = "csgo-server-firewall"
-  description = "Allow access to the CSGo Server"
-  network = "default"
-  
-  allow {
-    protocol = "tcp"
-    ports = ["27015"]
+data "aws_ami" "ubuntu" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"]
   }
 
-  allow {
-    protocol = "udp"
-    ports = [
-      "27015",
-      "27020",
-      "27005",
-      "51840"
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["099720109477"] # Canonical
+}
+
+resource "aws_vpc" "csgo-vpc" {
+  cidr_block = "172.32.0.0/16"
+}
+
+resource "aws_internet_gateway" "csgo-gw" {
+  vpc_id = aws_vpc.csgo-vpc.id
+
+  tags = {
+    Name = "CSGO for the win"
+  }
+}
+
+resource "aws_subnet" "csgo-subnet" {
+  vpc_id = aws_vpc.csgo-vpc.id
+  cidr_block = "172.32.0.0/16"
+}
+
+resource "aws_security_group" "csgo-security-group" {
+  name        = "csgo-security-group"
+  description = "Allos CSGO and ssh from me"
+  vpc_id      = aws_vpc.csgo-vpc.id
+
+  ingress {
+    description = "CSGO TCP"
+    from_port   = 27015
+    to_port     = 27015
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "CSGO UDP 51840"
+    from_port   = 51840
+    to_port     = 51840
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "CSGO UDP rest"
+    from_port   = 27005
+    to_port     = 27020
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH from me"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["77.173.121.42/32"]
+  }
+}
+
+resource "aws_key_pair" "master-key" {
+  key_name   = "master-key"
+  public_key = file(var.public-key-path)
+}
+
+## CSGO Server
+resource "aws_instance" "csgo-server" {
+  depends_on = [aws_internet_gateway.csgo-gw]
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = var.csgo-instance-machine-type
+
+  vpc_security_group_ids = [aws_security_group.csgo-security-group.id]
+  subnet_id = aws_subnet.csgo-subnet.id
+  ebs_block_device {
+    device_name = "/dev/sdf"
+    volume_size = 40
+  }
+  key_name = aws_key_pair.master-key.key_name
+
+  tags = {
+    Name = "CSGO for the win"
+  }
+}
+
+resource "null_resource" "configure-csgo-server" {
+
+  triggers = {
+    cluster_instance = aws_instance.csgo-server.id
+  }
+
+  connection {
+    type = "ssh"
+    host = aws_eip.csgo-server.public_ip
+    agent = true
+    timeout = "3m"
+  }
+
+  provisioner "file" {
+    destination = "/etc/csgo-server-launcher/csgo-server-launcher.conf"
+    content = data.template_file.csgo-server-launcher-conf.rendered
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      file("files/startup.sh")
     ]
   }
-
-  source_ranges = ["0.0.0.0/0"]
 }
 
-## Static IP
-resource "google_compute_address" "csgo-server" {
-  name = "csgo-server-ip"
+resource "aws_eip" "csgo-server" {
+  instance = aws_instance.csgo-server.id
+  vpc      = true
 }
-## CSGO Server
-resource "google_compute_instance" "cgso-server" {
-  name = "csgo-server"
-  description = "A Small CSGo practice server"
 
-  machine_type = "${var.csgo-instance-machine-type}"
-  zone = "${var.csgo-instance-region}"
-
-  boot_disk {
-    initialize_params {
-      type = "pd-standard"
-      image = "ubuntu-1804-bionic-v20180426b"
-      size = "20"
-    }
-  }
-
-  network_interface {
-    network       = "default"
-    access_config {
-      nat_ip = "${google_compute_address.csgo-server.address}"
-    }
-  }
-
-  metadata {
-    csgo-server-conf = "${data.template_file.csgo-server-launcher-conf.rendered}"
-    sshKeys = "${join("\n", var.csgo-instance-ssh-keys)}"
-    startup-script = "${file("./files/startup.sh")}"
-  }
-
-  tags = [
-    "csgo-server"
-  ]
+output "csgo_server_ip" {
+  value = aws_eip.csgo-server.public_ip
 }
