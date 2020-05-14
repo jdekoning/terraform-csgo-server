@@ -133,8 +133,7 @@ resource "aws_instance" "csgo-server" {
   vpc_security_group_ids = [aws_security_group.csgo-security-group.id]
   subnet_id = aws_subnet.csgo-subnet.id
 
-  ebs_block_device {
-    device_name = "/dev/sdf"
+  root_block_device {
     volume_size = 40
   }
   key_name = aws_key_pair.master-key.key_name
