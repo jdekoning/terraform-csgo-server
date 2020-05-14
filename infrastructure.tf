@@ -158,15 +158,25 @@ resource "null_resource" "configure-csgo-server" {
   }
 
   provisioner "file" {
-    destination = "/etc/csgo-server-launcher/csgo-server-launcher.conf"
+    destination = "/tmp/csgo-server-launcher.conf"
     content = data.template_file.csgo-server-launcher-conf.rendered
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      file("files/startup.sh")
-    ]
+  provisioner "file" {
+    destination = "/tmp/startup.sh"
+    content = file("files/startup.sh")
   }
+
+  provisioner "file" {
+    destination = "/tmp/install.sh"
+    content = file("files/install.sh")
+  }
+
+//  provisioner "remote-exec" {
+//    inline = [
+//      file("files/startup.sh")
+//    ]
+//  }
 }
 
 resource "aws_eip" "csgo-server" {
