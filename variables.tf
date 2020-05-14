@@ -1,4 +1,6 @@
 variable "public-key-path" {}
+variable "ssh-access-ip" {}
+variable "cidr-block" {}
 
 # Infrastructure related variables
 variable "csgo-instance-machine-type" {}

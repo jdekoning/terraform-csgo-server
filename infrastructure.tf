@@ -48,7 +48,7 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_vpc" "csgo-vpc" {
-  cidr_block = "172.32.0.0/16"
+  cidr_block = var.cidr-block
 }
 
 resource "aws_internet_gateway" "csgo-gw" {
@@ -59,15 +59,32 @@ resource "aws_internet_gateway" "csgo-gw" {
   }
 }
 
+data "aws_route_table" "csgo-route-table" {
+  vpc_id = aws_vpc.csgo-vpc.id
+}
+
+resource "aws_route" "csgo-internet-route" {
+  route_table_id            = data.aws_route_table.csgo-route-table.id
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id                = aws_internet_gateway.csgo-gw.id
+}
+
 resource "aws_subnet" "csgo-subnet" {
   vpc_id = aws_vpc.csgo-vpc.id
-  cidr_block = "172.32.0.0/16"
+  cidr_block = var.cidr-block
 }
 
 resource "aws_security_group" "csgo-security-group" {
   name        = "csgo-security-group"
   description = "Allos CSGO and ssh from me"
   vpc_id      = aws_vpc.csgo-vpc.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   ingress {
     description = "CSGO TCP"
@@ -98,7 +115,7 @@ resource "aws_security_group" "csgo-security-group" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["77.173.121.42/32"]
+    cidr_blocks = ["${var.ssh-access-ip}/32"]
   }
 }
 
@@ -115,6 +132,7 @@ resource "aws_instance" "csgo-server" {
 
   vpc_security_group_ids = [aws_security_group.csgo-security-group.id]
   subnet_id = aws_subnet.csgo-subnet.id
+
   ebs_block_device {
     device_name = "/dev/sdf"
     volume_size = 40
@@ -134,6 +152,7 @@ resource "null_resource" "configure-csgo-server" {
 
   connection {
     type = "ssh"
+    user = "ubuntu"
     host = aws_eip.csgo-server.public_ip
     agent = true
     timeout = "3m"
