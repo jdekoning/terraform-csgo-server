@@ -1,6 +1,10 @@
 # CSGO Automated Server Launch in AWS
 Create an ubuntu 18 server with CSGO Server installed and configured. Uses [crazy-max/csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher). More documentation to come.
 
+As it will run in the cloud and accessible over SSH, it currently expects a single IP from which server maintenance is done: ___your IP___, therefore there is also only one public key added: ___your key___.
+
+Optionally you could change the firewall setting, the ingress rule on `aws_security_group.csgo-security-group` 
+
 ## Usage
 ### Prerequisites
 * You need credentials for your own AWS account, I put them in my `.aws/credentials` file.
@@ -8,7 +12,9 @@ Create an ubuntu 18 server with CSGO Server installed and configured. Uses [craz
 * Make sure the block device under the host is big enough (~40GB). Steam throws very ugly errors.
 
 ### Configuration
-Create the file `secret.auto.tfvars` in the project root. Populate it with the minimum config (below) and any ssh keys you'd like added.
+Create the file `secret.auto.tfvars` in the project root. 
+
+Populate it with the minimum config (below).
 ```
 ssh-access-ip="your-ip-address"
 cidr-block="172.33.0.0/16"
@@ -28,7 +34,7 @@ Change the [S3 remote backend](https://www.terraform.io/docs/backends/types/s3.h
 ```
 terraform {
   backend "s3" {
-    bucket = "csgo-republic"
+    bucket = "your-bucket"
     key    = "terraform-csgo"
     region = "eu-west-1"
   }
