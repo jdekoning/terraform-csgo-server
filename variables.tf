@@ -44,3 +44,8 @@ variable "param-start" {
 variable "param-update" {
    default = "+login $STEAM_LOGIN $STEAM_PASSWORD +force_install_dir $DIR_ROOT +app_update 740 validate +quit"
 }
+variable "csgo-hostname" {
+   default = "CS:GO Awesomeness"
+}
+variable "rcon-password" {}
+variable "sv-password" {}

@@ -4,10 +4,13 @@
 ## Info here: https://github.com/crazy-max/csgo-server-launcher
 
 # Declare some constants
+STEAM_USER="steam"
 DEBUG_LOG_DIR="/var/log/csgo-install-debug.log"
 INSTALL_SCRIPT_PATH="/tmp/install.sh"
 CONFIG_FILE="/etc/csgo-server-launcher/csgo-server-launcher.conf"
 TEMP_CONFIG_FILE="/tmp/csgo-server-launcher.conf"
+AUTOEXEC_STEAM_FILE="/var/steamcmd/games/csgo/csgo/cfg/autoexec.cfg"
+TEMP_AUTOEXEC_STEAM_FILE="/tmp/autoexec.cfg"
 CONFIG_LOCK_FILE="/etc/csgo-server-launcher/.no-update"
 
 # Declare some functions
@@ -57,5 +60,15 @@ cp $TEMP_CONFIG_FILE $CONFIG_FILE 2>&1 >> $DEBUG_LOG_DIR || {
   fatal
 }
 
+log "INFO" "Overwrite autoexec.cfg with latest provisioned file"
+cp $TEMP_AUTOEXEC_STEAM_FILE $AUTOEXEC_STEAM_FILE 2>&1 >> $DEBUG_LOG_DIR || {
+  log "ERROR" "Failed to copy config file!"
+  fatal
+}
+chown ${STEAM_USER}. "$AUTOEXEC_STEAM_FILE" 2>&1 >> $DEBUG_LOG_DIR || {
+  log "ERROR" "Failed to change ownership!"
+  fatal
+}
+
 log "INFO" "Starting CSGO server!"
-sudo /etc/init.d/csgo-server-launcher start
+/etc/init.d/csgo-server-launcher restart

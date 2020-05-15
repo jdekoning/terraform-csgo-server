@@ -31,6 +31,16 @@ data "template_file" "csgo-server-launcher-conf" {
   }
 }
 
+data "template_file" "autoexec-cfg" {
+  template = file("templates/autoexec.cfg")
+
+  vars = {
+    csgo-hostname            = var.csgo-hostname
+    rcon-password            = var.rcon-password
+    sv-password              = var.sv-password
+  }
+}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
 
@@ -163,6 +173,11 @@ resource "null_resource" "configure-csgo-server" {
   }
 
   provisioner "file" {
+    destination = "/tmp/autoexec.cfg"
+    content = data.template_file.autoexec-cfg.rendered
+  }
+
+  provisioner "file" {
     destination = "/tmp/startup.sh"
     content = file("files/startup.sh")
   }
@@ -174,7 +189,8 @@ resource "null_resource" "configure-csgo-server" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo chmod +x /tmp/startup.sh"
+      "sudo chmod +x /tmp/startup.sh",
+      "sudo /tmp/startup.sh"
     ]
   }
 }

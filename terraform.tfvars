@@ -1,4 +1,5 @@
 csgo-instance-machine-type="t2.micro"
+//csgo-instance-machine-type-medium="t2.medium"
 
 # Server config variables
 # For information on values, see https://github.com/crazy-max/csgo-server-launcher#installation
