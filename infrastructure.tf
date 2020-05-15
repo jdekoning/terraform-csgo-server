@@ -98,7 +98,7 @@ resource "aws_security_group" "csgo-security-group" {
     description = "CSGO UDP 51840"
     from_port   = 51840
     to_port     = 51840
-    protocol    = "tcp"
+    protocol    = "udp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -106,7 +106,7 @@ resource "aws_security_group" "csgo-security-group" {
     description = "CSGO UDP rest"
     from_port   = 27005
     to_port     = 27020
-    protocol    = "tcp"
+    protocol    = "udp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -172,11 +172,11 @@ resource "null_resource" "configure-csgo-server" {
     content = file("files/install.sh")
   }
 
-//  provisioner "remote-exec" {
-//    inline = [
-//      file("files/startup.sh")
-//    ]
-//  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo chmod +x /tmp/startup.sh"
+    ]
+  }
 }
 
 resource "aws_eip" "csgo-server" {

@@ -38,11 +38,6 @@ fi
 
 # Install CSGO Server
 if [ ! -f "$CONFIG_LOCK_FILE" ]; then
-  log "INFO" "Overwrite config with provisioned file"
-  cp $TEMP_CONFIG_FILE $CONFIG_FILE 2>&1 >> $DEBUG_LOG_DIR || {
-    log "ERROR" "Failed to copy config file!"
-    fatal
-  }
   log "INFO" "Installing CSGo Server, this may take a while..."
   log "INFO" "Tail $DEBUG_LOG_DIR for progress"
   /etc/init.d/csgo-server-launcher create 2>&1 >> $DEBUG_LOG_DIR || {
@@ -56,4 +51,11 @@ fi
 # Create config lock to avoid reinstall
 touch $CONFIG_LOCK_FILE
 
+log "INFO" "Overwrite config with latest provisioned file"
+cp $TEMP_CONFIG_FILE $CONFIG_FILE 2>&1 >> $DEBUG_LOG_DIR || {
+  log "ERROR" "Failed to copy config file!"
+  fatal
+}
+
+log "INFO" "Starting CSGO server!"
 sudo /etc/init.d/csgo-server-launcher start
